@@ -142,7 +142,7 @@ export default function App() {
     });
   };
 
-  const handleShareSubmit = async (targetUserId: string, permission: 'view' | 'edit') => {
+  const handleShareSubmit = async (targetUserId: string, permission: 'view' | 'comment' | 'edit') => {
     if (!activeDoc || !currentUser) return;
     const res = await api.shareDocument(activeDoc.id, currentUser.id, targetUserId, permission);
     setActiveDoc((prev) => prev ? { ...prev, shares: res.shares } : null);
@@ -275,6 +275,13 @@ export default function App() {
           onClose={() => setShareModalOpen(false)}
           onShare={handleShareSubmit}
           onRevoke={handleRevokeShare}
+          onPublicUpdated={async () => {
+            if (activeDoc && currentUser) {
+              const fullDoc = await api.getDocument(activeDoc.id, currentUser.id);
+              setActiveDoc(fullDoc);
+              await loadDocuments(currentUser.id);
+            }
+          }}
         />
       )}
 

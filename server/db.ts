@@ -61,7 +61,27 @@ export function initDb() {
       FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
       FOREIGN KEY (created_by) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      selected_text TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      resolved BOOLEAN DEFAULT 0,
+      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
+
+  // Safe schema migrations for existing databases
+  try {
+    db.exec('ALTER TABLE documents ADD COLUMN is_public BOOLEAN DEFAULT 0;');
+  } catch (e) { /* Column already exists */ }
+  try {
+    db.exec("ALTER TABLE documents ADD COLUMN public_permission TEXT DEFAULT 'view';");
+  } catch (e) { /* Column already exists */ }
 
   // Seed default users if empty
   const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;

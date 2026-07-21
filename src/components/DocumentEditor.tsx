@@ -44,9 +44,12 @@ import {
   ChevronRight,
   ChevronDown,
   ArrowUpRight,
-  Check
+  Check,
+  MessageSquare,
+  Quote
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { CommentsDrawer } from './CommentsDrawer';
 
 interface DocumentEditorProps {
   document: Document;
@@ -70,6 +73,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [title, setTitle] = useState(document.title);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'offline'>('saved');
   const [exportOpen, setExportOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [selectedSnippet, setSelectedSnippet] = useState('');
+  const [geminiModalOpen, setGeminiModalOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showSidebarTabs, setShowSidebarTabs] = useState(true);
   const [showRuler, setShowRuler] = useState(true);
@@ -84,7 +90,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   const isOwner = document.owner_id === currentUser?.id;
   const permission = document.permission || (isOwner ? 'owner' : 'view');
-  const readOnly = permission === 'view';
+  const readOnly = permission === 'view' || permission === 'comment';
 
   useEffect(() => {
     setTitle(document.title);
@@ -278,8 +284,13 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }, 700);
   };
 
-  const handleExport = (format: 'md' | 'html' | 'txt') => {
+  const handleExport = (format: 'pdf' | 'md' | 'html' | 'txt') => {
     if (!editor) return;
+    if (format === 'pdf') {
+      window.print();
+      setExportOpen(false);
+      return;
+    }
     let contentStr = '';
     let mimeType = 'text/plain';
     let ext = format;
@@ -336,7 +347,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-doc-bg min-h-[calc(100vh-65px)] overflow-y-auto">
       {/* Top Document Header Bar (Polished like exact Google Docs layout) */}
-      <div className="bg-white border-b border-slate-200/90 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-4 sticky top-0 z-20 shadow-xs min-h-[65px]">
+      <div className="bg-white border-b border-slate-200/90 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-4 sticky top-0 z-50 shadow-xs min-h-[65px] no-print">
         {/* Left Section: Back button, Doc Icon, Title & Save Status */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
@@ -421,23 +432,23 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   </button>
 
                   {activeMenu === menuItem && (
-                    <div className="absolute left-0 top-full mt-1 w-52 bg-white rounded-lg shadow-xl border border-slate-200/90 py-1.5 z-50 text-slate-700 font-normal">
+                    <div className="absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-[60] text-slate-700 font-normal animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto">
                       {menuItem === 'File' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); onOpenHistory(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
+                          <button type="button" onClick={() => { setActiveMenu(null); onOpenHistory(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
                             <History className="w-4 h-4 text-slate-400" />
                             <span>Version history</span>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); !readOnly && onOpenImport(); }} disabled={readOnly} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2 disabled:opacity-50">
+                          <button type="button" onClick={() => { setActiveMenu(null); !readOnly && onOpenImport(); }} disabled={readOnly} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 disabled:opacity-50 font-medium">
                             <UploadCloud className="w-4 h-4 text-slate-400" />
                             <span>Import file...</span>
                           </button>
                           <div className="h-[1px] bg-slate-100 my-1" />
-                          <button type="button" onClick={() => { setActiveMenu(null); setExportOpen(true); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
+                          <button type="button" onClick={() => { setActiveMenu(null); setExportOpen(true); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
                             <Download className="w-4 h-4 text-slate-400" />
                             <span>Download as...</span>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); window.print(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
+                          <button type="button" onClick={() => { setActiveMenu(null); window.print(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
                             <span className="text-sm leading-none">🖨️</span>
                             <span>Print</span>
                           </button>
@@ -445,28 +456,28 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                       )}
                       {menuItem === 'Edit' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().undo().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between">
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().undo().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
                             <span>Undo</span>
-                            <span className="text-slate-400 text-[10px]">Ctrl+Z</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+Z</span>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().redo().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between">
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().redo().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
                             <span>Redo</span>
-                            <span className="text-slate-400 text-[10px]">Ctrl+Y</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+Y</span>
                           </button>
                           <div className="h-[1px] bg-slate-100 my-1" />
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().selectAll().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between">
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().selectAll().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
                             <span>Select all</span>
-                            <span className="text-slate-400 text-[10px]">Ctrl+A</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+A</span>
                           </button>
                         </>
                       )}
                       {menuItem === 'View' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); setShowSidebarTabs(!showSidebarTabs); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between">
+                          <button type="button" onClick={() => { setActiveMenu(null); setShowSidebarTabs(!showSidebarTabs); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
                             <span>Show document tabs / outline</span>
                             <Check className={`w-4 h-4 ${showSidebarTabs ? 'text-brand-600' : 'opacity-0'}`} />
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); setShowRuler(!showRuler); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between">
+                          <button type="button" onClick={() => { setActiveMenu(null); setShowRuler(!showRuler); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
                             <span>Show ruler</span>
                             <Check className={`w-4 h-4 ${showRuler ? 'text-brand-600' : 'opacity-0'}`} />
                           </button>
@@ -474,40 +485,107 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                       )}
                       {menuItem === 'Insert' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); setUrlModalConfig({ isOpen: true, type: 'image' }); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
-                            <span>🖼️ Image</span>
+                          <button type="button" onClick={() => { setActiveMenu(null); setUrlModalConfig({ isOpen: true, type: 'image' }); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
+                            <span>🖼️</span>
+                            <span>Image...</span>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); setUrlModalConfig({ isOpen: true, type: 'link', initialUrl: editor?.getAttributes('link').href || '' }); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
-                            <span>🔗 Link</span>
+                          <button type="button" onClick={() => { setActiveMenu(null); setUrlModalConfig({ isOpen: true, type: 'link', initialUrl: editor?.getAttributes('link').href || '' }); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
+                            <span>🔗</span>
+                            <span>Link (Ctrl+K)...</span>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setHorizontalRule().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2">
-                            <span>— Horizontal line</span>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setHorizontalRule().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
+                            <span>—</span>
+                            <span>Horizontal line</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleBlockquote().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
+                            <span>💬</span>
+                            <span>Blockquote</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleCodeBlock().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
+                            <span>💻</span>
+                            <span>Code block</span>
+                          </button>
+                          <div className="h-[1px] bg-slate-100 my-1" />
+                          <button type="button" onClick={() => { setActiveMenu(null); setCommentsOpen(true); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium text-amber-700">
+                            <MessageSquare className="w-4 h-4 text-amber-500" />
+                            <span>Comment on document</span>
                           </button>
                         </>
                       )}
                       {menuItem === 'Format' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleBold().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100">Bold (Ctrl+B)</button>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleItalic().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100">Italic (Ctrl+I)</button>
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleUnderline().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100">Underline (Ctrl+U)</button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleBold().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
+                            <span className="font-bold">Bold</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+B</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleItalic().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
+                            <span className="italic">Italic</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+I</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleUnderline().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
+                            <span className="underline">Underline</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Ctrl+U</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleStrike().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
+                            <span className="line-through">Strikethrough</span>
+                            <span className="text-slate-400 text-[10px] font-mono">Alt+Shift+5</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().toggleHighlight().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center justify-between font-medium">
+                            <span className="bg-yellow-200 px-1 rounded">Highlight</span>
+                          </button>
                           <div className="h-[1px] bg-slate-100 my-1" />
-                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().clearNodes().unsetAllMarks().run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 text-red-600">Clear formatting</button>
+                          <div className="px-3.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Align & Indent</div>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setTextAlign('left').run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 text-xs">Left align</button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setTextAlign('center').run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 text-xs">Center align</button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setTextAlign('right').run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 text-xs">Right align</button>
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().setTextAlign('justify').run(); }} className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 text-xs">Justify</button>
+                          <div className="h-[1px] bg-slate-100 my-1" />
+                          <button type="button" onClick={() => { setActiveMenu(null); editor?.chain().focus().clearNodes().unsetAllMarks().run(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 text-red-600 font-semibold">Clear formatting</button>
                         </>
                       )}
-                      {(menuItem === 'Tools' || menuItem === 'Help') && (
-                        <div className="px-3.5 py-2 text-xs text-slate-500">
-                          {menuItem === 'Tools' ? `Word count: ${editor?.getText().split(/\s+/).filter(Boolean).length || 0} words` : 'Ajaia Collaborative Editor v1.0 — Built with AI-Native tools.'}
+                      {menuItem === 'Tools' && (
+                        <>
+                          <div className="px-3.5 py-2.5 text-xs text-slate-700 border-b border-slate-100 bg-slate-50/80 font-medium">
+                            <div>Word count: <strong>{wordCount}</strong> words</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">Character count: {charCount} chars ({readingTimeMinutes} min read)</div>
+                          </div>
+                          <button type="button" onClick={() => { setActiveMenu(null); setCommentsOpen(true); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2 font-medium">
+                            <MessageSquare className="w-4 h-4 text-slate-500" />
+                            <span>View Comments Panel</span>
+                          </button>
+                        </>
+                      )}
+                      {menuItem === 'Help' && (
+                        <div className="px-3.5 py-3 text-xs text-slate-600 space-y-1.5 bg-slate-50/50">
+                          <div className="font-bold text-slate-800 text-sm">Ajaia Collaborative Editor v1.0</div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">Built with AI-Native tools, TipTap, SQLite & Vite.</p>
+                          <div className="pt-1 text-[11px] font-semibold text-brand-600">Shortcuts: Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+Z (Undo)</div>
                         </div>
                       )}
                       {menuItem === 'Gemini' && (
                         <>
-                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Help me write an executive overview'); }} className="w-full text-left px-3.5 py-1.5 hover:bg-brand-50 text-brand-700 flex items-center gap-2 font-medium">
-                            <Sparkles className="w-4 h-4" />
-                            <span>Help me write...</span>
+                          <button type="button" onClick={() => { setActiveMenu(null); setGeminiModalOpen(true); }} className="w-full text-left px-3.5 py-2.5 hover:bg-brand-50 text-brand-700 flex items-center gap-2.5 font-bold border-b border-slate-100">
+                            <Sparkles className="w-4.5 h-4.5 text-brand-600 shrink-0" />
+                            <div>
+                              <div className="text-sm">Open Gemini Assistant...</div>
+                              <div className="text-[11px] text-slate-400 font-normal">Custom prompt & quick actions</div>
+                            </div>
                           </button>
-                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Summarize key points'); }} className="w-full text-left px-3.5 py-1.5 hover:bg-brand-50 text-brand-700 flex items-center gap-2 font-medium">
-                            <Wand2 className="w-4 h-4" />
+                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Help me write an executive overview'); }} className="w-full text-left px-3.5 py-2 hover:bg-brand-50 text-slate-700 flex items-center gap-2 font-medium">
+                            <Wand2 className="w-4 h-4 text-brand-500 shrink-0" />
+                            <span>Write executive overview</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Summarize the key points and takeaways of this document concisely'); }} className="w-full text-left px-3.5 py-2 hover:bg-brand-50 text-slate-700 flex items-center gap-2 font-medium">
+                            <Sparkles className="w-4 h-4 text-brand-500 shrink-0" />
                             <span>Summarize document</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Improve the tone, clarity, and professionalism of the existing text'); }} className="w-full text-left px-3.5 py-2 hover:bg-brand-50 text-slate-700 flex items-center gap-2 font-medium">
+                            <Wand2 className="w-4 h-4 text-brand-500 shrink-0" />
+                            <span>Polish tone & clarity</span>
+                          </button>
+                          <button type="button" onClick={() => { setActiveMenu(null); handleGeminiPrompt('Expand and elaborate on the core arguments with detailed examples'); }} className="w-full text-left px-3.5 py-2 hover:bg-brand-50 text-slate-700 flex items-center gap-2 font-medium">
+                            <Sparkles className="w-4 h-4 text-brand-500 shrink-0" />
+                            <span>Expand & elaborate</span>
                           </button>
                         </>
                       )}
@@ -527,10 +605,12 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
               : permission === 'edit'
               ? 'bg-blue-50 text-blue-700 border-blue-200'
+              : permission === 'comment'
+              ? 'bg-purple-50 text-purple-700 border-purple-200'
               : 'bg-amber-50 text-amber-700 border-amber-200'
           }`}>
-            {permission === 'owner' ? <ShieldCheck className="w-3.5 h-3.5" /> : permission === 'edit' ? <Edit3 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {permission === 'owner' ? 'Owner' : permission === 'edit' ? 'Can Edit' : 'View Only'}
+            {permission === 'owner' ? <ShieldCheck className="w-3.5 h-3.5" /> : permission === 'edit' ? <Edit3 className="w-3.5 h-3.5" /> : permission === 'comment' ? <MessageSquare className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {permission === 'owner' ? 'Owner' : permission === 'edit' ? 'Can Edit' : permission === 'comment' ? 'Can Comment' : 'View Only'}
           </span>
 
           {/* Import into draft button (if can edit) */}
@@ -557,6 +637,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             <span className="hidden sm:inline">History</span>
           </button>
 
+          {/* Comments Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedSnippet('');
+              setCommentsOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200/80 relative"
+            title="View & Add Comments"
+          >
+            <MessageSquare className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline">Comments</span>
+            {(document.comments?.length || 0) > 0 && (
+              <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center -top-1 -right-1 absolute">
+                {document.comments?.length}
+              </span>
+            )}
+          </button>
+
           {/* Export Dropdown */}
           <div className="relative">
             <button
@@ -572,7 +671,11 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             {exportOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setExportOpen(false)} />
-                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in duration-100">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in duration-100">
+                  <button type="button" onClick={() => handleExport('pdf')} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-semibold border-b border-slate-100 flex items-center justify-between">
+                    <span>PDF / Print (.pdf)</span>
+                    <span className="text-[10px] text-brand-600 font-bold bg-brand-50 px-1.5 py-0.5 rounded">NEW</span>
+                  </button>
                   <button type="button" onClick={() => handleExport('md')} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium">
                     Markdown (.md)
                   </button>
@@ -804,6 +907,131 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             }
           }}
           onClose={() => setUrlModalConfig({ ...urlModalConfig, isOpen: false })}
+        />
+      )}
+
+      {/* Gemini AI Floating Modal (from Top Menu or shortcuts) */}
+      {geminiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150 no-print">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shadow-2xs">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Gemini AI Assistant</h3>
+                  <p className="text-xs text-slate-500">Generate, expand, or polish your document content</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGeminiModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                What would you like Gemini to write or edit?
+              </label>
+              <textarea
+                rows={3}
+                value={aiPromptText}
+                onChange={(e) => setAiPromptText(e.target.value)}
+                placeholder="e.g. Write a comprehensive project roadmap for Q3 with milestones..."
+                className="w-full p-3.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:bg-white transition-all resize-none"
+              />
+
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {['Executive Summary', 'Action Items Table', 'Professional Tone', 'Expand Section'].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setAiPromptText(`Generate a detailed ${chip.toLowerCase()}`)}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-medium transition-colors"
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setGeminiModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!aiPromptText.trim() || isAiGenerating}
+                onClick={() => {
+                  setGeminiModalOpen(false);
+                  handleGeminiPrompt();
+                }}
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Generate with Gemini</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commenter Mode Banner */}
+      {permission === 'comment' && (
+        <div className="bg-purple-50/95 border-b border-purple-200 px-4 lg:px-8 py-2 flex items-center justify-between text-xs text-purple-900 shadow-2xs no-print">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-purple-600 shrink-0" />
+            <span><strong>Commenter Mode</strong> — You have comment access. You can view & attach notes/feedback right here without altering the document text.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCommentsOpen(true)}
+            className="font-bold underline hover:text-purple-700 shrink-0 ml-2"
+          >
+            Open Comments ({document.comments?.length || 0})
+          </button>
+        </div>
+      )}
+
+      {/* Floating selection comment bar */}
+      {editor && !editor.state.selection.empty && (permission === 'owner' || permission === 'edit' || permission === 'comment') && (
+        <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-30 animate-in fade-in slide-in-from-bottom-3 duration-150 no-print">
+          <button
+            type="button"
+            onClick={() => {
+              const from = editor.state.selection.from;
+              const to = editor.state.selection.to;
+              const text = editor.state.doc.textBetween(from, to, ' ');
+              setSelectedSnippet(text);
+              setCommentsOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-full bg-slate-900 text-white shadow-xl hover:bg-slate-800 transition-all flex items-center gap-2 text-xs font-semibold border border-slate-700/80 active:scale-95"
+          >
+            <MessageSquare className="w-4 h-4 text-amber-400" />
+            <span>Comment on selection</span>
+          </button>
+        </div>
+      )}
+
+      {/* Comments Drawer */}
+      {commentsOpen && currentUser && (
+        <CommentsDrawer
+          documentId={document.id}
+          currentUserId={currentUser.id}
+          permission={permission}
+          selectedText={selectedSnippet}
+          onClose={() => {
+            setCommentsOpen(false);
+            setSelectedSnippet('');
+          }}
         />
       )}
     </div>

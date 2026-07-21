@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Document, User } from '../types';
-import { X, Share2, ShieldCheck, Eye, Edit3, Trash2, Check, UserPlus, Users, Lock, Sparkles } from 'lucide-react';
+import { X, Share2, ShieldCheck, Eye, Edit3, Trash2, Check, UserPlus, Users, Lock, MessageSquare, Globe, Copy } from 'lucide-react';
+import { api } from '../utils/api';
 
 interface ShareModalProps {
   document: Document;
   currentUser: User | null;
   users: User[];
   onClose: () => void;
-  onShare: (targetUserId: string, permission: 'view' | 'edit') => Promise<void>;
+  onShare: (targetUserId: string, permission: 'view' | 'comment' | 'edit') => Promise<void>;
   onRevoke: (targetUserId: string) => Promise<void>;
+  onPublicUpdated?: () => void;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -18,9 +20,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   onShare,
   onRevoke,
+  onPublicUpdated,
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [permission, setPermission] = useState<'view' | 'edit'>('edit');
+  const [permission, setPermission] = useState<'view' | 'comment' | 'edit'>('edit');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-base leading-tight">Share "{document.title}"</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Manage permissions and collaborators</p>
+              <p className="text-xs text-slate-500 mt-0.5">Manage permissions and general access</p>
             </div>
           </div>
           <button
@@ -98,10 +101,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                 <select
                   value={permission}
-                  onChange={(e) => setPermission(e.target.value as 'view' | 'edit')}
+                  onChange={(e) => setPermission(e.target.value as 'view' | 'comment' | 'edit')}
                   className="w-full sm:w-auto h-10 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 font-semibold shadow-2xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 >
                   <option value="edit">Can Edit</option>
+                  <option value="comment">Can Comment</option>
                   <option value="view">Can View</option>
                 </select>
 
@@ -175,10 +179,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
                         share.permission === 'edit'
                           ? 'bg-blue-50 text-blue-700 border border-blue-200/80'
+                          : share.permission === 'comment'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200/80'
                           : 'bg-amber-50 text-amber-700 border border-amber-200/80'
                       }`}>
-                        {share.permission === 'edit' ? <Edit3 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        {share.permission === 'edit' ? 'Can Edit' : 'Can View'}
+                        {share.permission === 'edit' ? <Edit3 className="w-3.5 h-3.5" /> : share.permission === 'comment' ? <MessageSquare className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {share.permission === 'edit' ? 'Can Edit' : share.permission === 'comment' ? 'Can Comment' : 'Can View'}
                       </span>
 
                       {/* Revoke access button (only owner) */}
@@ -201,6 +207,72 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* General Access (Public Link) */}
+          <div className="space-y-3 pt-1">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" /> General Access (Link Sharing)
+            </h4>
+            <div className="p-4 bg-slate-50/80 border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  document.is_public ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {document.is_public ? <Globe className="w-4.5 h-4.5" /> : <Lock className="w-4.5 h-4.5" />}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-800">
+                    {document.is_public ? 'Anyone with the link' : 'Restricted'}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {document.is_public ? `Anyone on the internet with this link can ${document.public_permission || 'view'}` : 'Only invited teammates can access with this link'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {isOwner && (
+                  <select
+                    value={document.is_public ? (document.public_permission || 'view') : 'restricted'}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      try {
+                        if (val === 'restricted') {
+                          await api.updatePublicAccess(document.id, document.owner_id, false, 'view');
+                        } else {
+                          await api.updatePublicAccess(document.id, document.owner_id, true, val as any);
+                        }
+                        onPublicUpdated?.();
+                        setSuccessMsg('General access updated!');
+                        setTimeout(() => setSuccessMsg(null), 3000);
+                      } catch (err) {
+                        setError('Failed to update general access');
+                      }
+                    }}
+                    className="h-9 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  >
+                    <option value="restricted">Restricted</option>
+                    <option value="view">Anyone — Can View</option>
+                    <option value="comment">Anyone — Can Comment</option>
+                    <option value="edit">Anyone — Can Edit</option>
+                  </select>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    setSuccessMsg('Link copied to clipboard!');
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                  }}
+                  className="h-9 px-3.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-all flex items-center gap-1.5 shrink-0 active:scale-95"
+                  title="Copy Document Link"
+                >
+                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Copy Link</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -217,3 +289,4 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     </div>
   );
 };
+

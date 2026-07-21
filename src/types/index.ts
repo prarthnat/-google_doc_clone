@@ -10,7 +10,7 @@ export interface DocumentShare {
   id: string;
   document_id: string;
   user_id: string;
-  permission: 'view' | 'edit';
+  permission: 'view' | 'comment' | 'edit';
   shared_at: string;
   name?: string;
   email?: string;
@@ -31,6 +31,18 @@ export interface DocumentVersion {
   creator_avatar?: string;
 }
 
+export interface DocumentComment {
+  id: string;
+  document_id: string;
+  user_id: string;
+  user_name: string;
+  user_avatar: string;
+  text: string;
+  selected_text?: string;
+  created_at: string;
+  resolved?: boolean;
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -40,6 +52,10 @@ export interface Document {
   updated_at: string;
   owner_name?: string;
   owner_avatar?: string;
-  permission: 'owner' | 'edit' | 'view';
+  is_public?: boolean;
+  public_permission?: 'view' | 'comment' | 'edit';
+  permission: 'owner' | 'edit' | 'comment' | 'view';
   shares?: DocumentShare[];
+  comments?: DocumentComment[];
 }
+

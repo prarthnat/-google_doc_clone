@@ -51,7 +51,7 @@ export const api = {
     if (!res.ok) throw new Error('Failed to delete document');
   },
 
-  async shareDocument(documentId: string, ownerId: string, targetUserId: string, permission: 'view' | 'edit') {
+  async shareDocument(documentId: string, ownerId: string, targetUserId: string, permission: 'view' | 'comment' | 'edit') {
     const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}/share`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,6 +60,19 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to share document' }));
       throw new Error(err.error || 'Failed to share document');
+    }
+    return res.json();
+  },
+
+  async updatePublicAccess(documentId: string, ownerId: string, isPublic: boolean, publicPermission: 'view' | 'comment' | 'edit') {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}/public`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerId, isPublic, publicPermission }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update public access' }));
+      throw new Error(err.error || 'Failed to update public access');
     }
     return res.json();
   },
@@ -123,5 +136,30 @@ export const api = {
       throw new Error(err.error || 'AI request failed');
     }
     return res.json();
+  },
+
+  async getComments(documentId: string) {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}/comments`);
+    if (!res.ok) throw new Error('Failed to fetch comments');
+    return res.json();
+  },
+
+  async createComment(documentId: string, userId: string, text: string, selectedText?: string) {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, text, selectedText }),
+    });
+    if (!res.ok) throw new Error('Failed to create comment');
+    return res.json();
+  },
+
+  async resolveComment(documentId: string, commentId: string, userId: string) {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentId)}/comments/${encodeURIComponent(commentId)}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to resolve comment');
+    return res.json();
   }
 };
+

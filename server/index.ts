@@ -115,6 +115,8 @@ app.get('/api/documents/:id', (req: Request, res: Response) => {
     const share = db.prepare('SELECT permission FROM document_shares WHERE document_id = ? AND user_id = ?').get(id, userId) as any;
     if (share) {
       permission = share.permission;
+    } else if (doc.is_public) {
+      permission = doc.public_permission || 'view';
     }
   }
 
@@ -130,7 +132,16 @@ app.get('/api/documents/:id', (req: Request, res: Response) => {
     WHERE ds.document_id = ?
   `).all(id);
 
-  res.json({ ...doc, permission, shares });
+  // Get all comments for this document
+  const comments = db.prepare(`
+    SELECT c.*, u.name as user_name, u.avatar as user_avatar
+    FROM comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.document_id = ?
+    ORDER BY c.created_at DESC
+  `).all(id);
+
+  res.json({ ...doc, permission, shares, comments });
 });
 
 // 4. Create new document
@@ -187,6 +198,8 @@ app.put('/api/documents/:id', (req: Request, res: Response) => {
   } else {
     const share = db.prepare('SELECT permission FROM document_shares WHERE document_id = ? AND user_id = ?').get(id, userId) as any;
     if (share && share.permission === 'edit') {
+      permission = 'edit';
+    } else if (doc.is_public && doc.public_permission === 'edit') {
       permission = 'edit';
     }
   }
@@ -303,6 +316,95 @@ app.delete('/api/documents/:id/share/:targetUserId', (req: Request, res: Respons
   res.json({ success: true, shares });
 });
 
+// 8.5 Toggle or update public access settings
+app.post('/api/documents/:id/public', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { ownerId, isPublic, publicPermission = 'view' } = req.body;
+
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+  if (!doc || doc.owner_id !== ownerId) {
+    return res.status(403).json({ error: 'Only owner can change public access settings' });
+  }
+
+  const now = new Date().toISOString();
+  db.prepare('UPDATE documents SET is_public = ?, public_permission = ?, updated_at = ? WHERE id = ?')
+    .run(isPublic ? 1 : 0, publicPermission, now, id);
+
+  res.json({ success: true, is_public: isPublic ? 1 : 0, public_permission: publicPermission });
+});
+
+// 8.6 Get document comments
+app.get('/api/documents/:id/comments', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const comments = db.prepare(`
+    SELECT c.*, u.name as user_name, u.avatar as user_avatar
+    FROM comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.document_id = ?
+    ORDER BY c.created_at DESC
+  `).all(id);
+  res.json(comments);
+});
+
+// 8.7 Add document comment
+app.post('/api/documents/:id/comments', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { userId, text, selectedText } = req.body;
+
+  if (!userId || !text) {
+    return res.status(400).json({ error: 'userId and text are required' });
+  }
+
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+  let permission = 'none';
+  if (doc.owner_id === userId) {
+    permission = 'owner';
+  } else {
+    const share = db.prepare('SELECT permission FROM document_shares WHERE document_id = ? AND user_id = ?').get(id, userId) as any;
+    if (share) permission = share.permission;
+  }
+
+  if (permission === 'none') {
+    return res.status(403).json({ error: 'You do not have permission to comment on this document' });
+  }
+
+  const commentId = `cmt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString();
+
+  db.prepare('INSERT INTO comments (id, document_id, user_id, text, selected_text, created_at, resolved) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(commentId, id, userId, text, selectedText || null, now, 0);
+
+  const newComment = db.prepare(`
+    SELECT c.*, u.name as user_name, u.avatar as user_avatar
+    FROM comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.id = ?
+  `).get(commentId);
+
+  res.status(201).json(newComment);
+});
+
+// 8.8 Resolve / Delete comment
+app.delete('/api/documents/:id/comments/:commentId', (req: Request, res: Response) => {
+  const { id, commentId } = req.params;
+  const { userId } = req.query;
+
+  const comment = db.prepare('SELECT * FROM comments WHERE id = ? AND document_id = ?').get(commentId, id) as any;
+  if (!comment) {
+    return res.status(404).json({ error: 'Comment not found' });
+  }
+
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+  if (comment.user_id !== userId && doc.owner_id !== userId) {
+    return res.status(403).json({ error: 'Only comment creator or document owner can resolve comments' });
+  }
+
+  db.prepare('DELETE FROM comments WHERE id = ?').run(commentId);
+  res.json({ success: true });
+});
+
 // 9. Get document version history
 app.get('/api/documents/:id/versions', (req: Request, res: Response) => {
   const { id } = req.params;
@@ -322,8 +424,24 @@ app.post('/api/documents/:id/versions', (req: Request, res: Response) => {
   const { id } = req.params;
   const { userId, summary = 'Named checkpoint' } = req.body;
 
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+
   const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
   if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+  let permission = 'none';
+  if (doc.owner_id === userId) {
+    permission = 'owner';
+  } else {
+    const share = db.prepare('SELECT permission FROM document_shares WHERE document_id = ? AND user_id = ?').get(id, userId) as any;
+    if (share) permission = share.permission;
+  }
+
+  if (permission === 'none') {
+    return res.status(403).json({ error: 'You do not have permission to snapshot this document' });
+  }
 
   const lastVer = db.prepare('SELECT MAX(version_number) as maxVer FROM document_versions WHERE document_id = ?').get(id) as any;
   const nextVer = (lastVer?.maxVer || 0) + 1;

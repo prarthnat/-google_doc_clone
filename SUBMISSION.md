@@ -36,7 +36,8 @@ This repository contains the complete, self-contained full-stack application and
 - **[`src/components/EditorToolbar.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/EditorToolbar.tsx)** — Formatting controls pinned above the canvas (`Bold`, `Italic`, `Underline`, `Headings`, `Lists`, `Code`, `Quotes`, `Alignments`, `Font Picker`, `Color Palette`) with focus-safe `type="button"` event handling.
 - **[`src/components/ShareModal.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/ShareModal.tsx)** — Modal allowing owners to invite teammates (`view` vs `edit` permissions), inspect active collaborators, and revoke access.
 - **[`src/components/ImportModal.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/ImportModal.tsx)** — Upload workflow allowing users to drag and drop `.docx`, `.md`, `.txt`, or `.html` files and turn them into a new document or insert right into the current draft.
-- **[`src/components/VersionHistoryDrawer.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/VersionHistoryDrawer.tsx)** — Slide-out right drawer (optional stretch feature completed!) showing historical checkpoints, diff previews, and one-click rollback.
+- **[`src/components/VersionHistoryDrawer.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/VersionHistoryDrawer.tsx)** — Slide-out right drawer showing historical checkpoints, diff previews, and one-click rollback.
+- **[`src/components/CommentsDrawer.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/CommentsDrawer.tsx)** — Selection-based commenting and feedback drawer supporting selection text snippet attachments, Commenter Mode, and resolution workflows.
 - **[`src/components/DeleteConfirmModal.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/DeleteConfirmModal.tsx)** — Defensive confirmation dialog preventing accidental permanent document deletion.
 - **[`src/components/UrlPromptModal.tsx`](file:///Users/prarthna/Downloads/google_doc_clone/src/components/UrlPromptModal.tsx)** — Custom styled modal for inserting links and images without relying on blocking native browser prompts.
 
@@ -45,3 +46,29 @@ This repository contains the complete, self-contained full-stack application and
 ## 🧪 Verification & Build Status
 - **Automated Tests:** `npm test` ✅ (`1 passed, 10 tests total`)
 - **Production Bundle:** `npm run build` ✅ (`dist/index.html` and bundled assets generated cleanly without errors)
+
+---
+
+## 🎯 Rubric Status & Scope Breakdown
+
+### ✅ What is Working
+1. **Document Creation & Editing:** Real-time editable titles, physical paper UI, and TipTap rich-text editing (Bold, Italic, Underline, H1/H2/H3, Bullet & Numbered lists, Blockquotes, Code Blocks, Alignments, Fonts, Colors).
+2. **File Upload / Import Engine:** Drag-and-drop ingestion of `.docx`, `.md`, `.txt`, and `.html` files, with the choice to create a new document or append directly to the current active draft.
+3. **Multi-User Sharing Model:** Granular access control (`Owner`, `Can Edit`, `Can Comment`, `Can View`), protected by both read-only UI states and backend `403 Forbidden` verification. Includes an interactive **Demo Account Switcher** (4 seeded personas) for instant multi-user testing without login friction.
+4. **Reliable Persistence:** SQLite (`better-sqlite3`) in **WAL mode** combined with a synchronous **localStorage Write-Ahead Buffer** that captures offline keystrokes and automatically replays mutations upon network re-connection.
+5. **✨ All 5 Optional Stretch Enhancements:**
+   - Real-time collaborator avatars displayed right next to the Share button.
+   - Selection-based commenting and suggestion mode (`CommentsDrawer`).
+   - Chronological Version History snapshots with one-click rollback (`VersionHistoryDrawer`).
+   - Multi-format document export (`.md`, `.html`, `.txt`) plus PDF print export (`window.print()`).
+   - Role-based permissions beyond basic access (`Owner`, `Can Edit`, `Can Comment`, `Can View`).
+
+### 🛑 What is Incomplete / Intentionally Scoped Out
+1. **Real-Time WebSockets / CRDT Live Sync:** We consciously avoided external WebSocket relays (`Yjs`/`Hocuspocus`/Redis) to guarantee zero setup friction (`npm i && npm run dev`), zero external database dependencies, and 100% deterministic grading out of the box. Multi-tab synchronization occurs via 700ms debounced REST + SQLite WAL checkpoints.
+2. **Enterprise Authentication (JWT / OAuth):** Instead of requiring reviewers to sign up or fill out mock login forms repeatedly, `userId` is passed dynamically via our top-bar **Account Switcher**, allowing reviewers to verify permission boundaries across 4 seeded roles in under 30 seconds.
+3. **Lossy Markdown Export Visual Styling:** While our TipTap editor supports custom font colors (`#dc2626`), font families, and center alignments, standard `.md` export strips visual styling because Markdown specification standardizes semantic text structure rather than visual presentation (handled cleanly by providing HTML and PDF export).
+
+### 🚀 What We Would Build Next with Another 2–4 Hours
+1. **CRDT Real-Time Sync (Yjs + Hocuspocus/WebSockets):** With additional time outside the take-home constraint, we would attach `@tiptap/extension-collaboration` and `@tiptap/extension-collaboration-cursor` connected to a lightweight Hocuspocus server for live selection bubbles (`Prarthna is typing...`).
+2. **Granular Public Link Sharing Settings:** Add expiration timestamps and password protection for public share links (`/api/documents/:id/public`).
+3. **Export to Native `.docx`:** Integrate a server-side `docx` generator library so users can export rich text directly back into Microsoft Word `.docx` binary format alongside our current `.md`, `.html`, and PDF exports.
