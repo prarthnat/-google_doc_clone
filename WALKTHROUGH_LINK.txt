@@ -1,0 +1,11 @@
+Walkthrough Video Submission for Ajaia LLC Assessment
+Candidate: Prarthna Tiwari (prarthnatiwari04@gmail.com)
+
+Video URL: https://youtu.be/ajaia-demo-prarthna-tiwari (Paste exact Loom / YouTube link when recorded)
+
+In this 3-5 minute walkthrough video, I cover:
+1. End-to-end user flow: Creating a document, rich text formatting (TipTap), debounced autosaving to SQLite.
+2. File Upload & Workflow: Importing `.md` / `.txt` files into new or existing drafts.
+3. Multi-user Sharing & Access Control: Granting 'Can Edit' and 'Can View' permissions, switching demo user accounts in 1-click using our Account Switcher, and observing live permission enforcement (403 Forbidden vs View Only vs Can Edit).
+4. Stretch Feature: Version History snapshotting and 1-click rollback.
+5. Architectural tradeoffs and practical AI-assisted engineering.

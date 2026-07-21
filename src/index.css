@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-doc-bg text-slate-800 font-sans antialiased;
+  }
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  @apply outline-none min-h-[700px] text-slate-800 leading-relaxed text-[16px];
+}
+
+.ProseMirror p {
+  @apply mb-4 leading-relaxed block w-full;
+}
+
+.ProseMirror h1 {
+  @apply text-3xl font-bold mb-4 mt-6 text-slate-900 tracking-tight block w-full;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-semibold mb-3 mt-5 text-slate-800 tracking-tight block w-full;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-semibold mb-2 mt-4 text-slate-800 block w-full;
+}
+
+.ProseMirror ul {
+  @apply list-disc list-inside mb-4 pl-4 space-y-1 block w-full;
+}
+
+.ProseMirror ol {
+  @apply list-decimal list-inside mb-4 pl-4 space-y-1 block w-full;
+}
+
+.ProseMirror li {
+  @apply leading-relaxed;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-brand-500 pl-4 italic text-slate-600 my-4 bg-brand-50/50 py-2 rounded-r block w-full;
+}
+
+.ProseMirror code {
+  @apply bg-slate-100 text-slate-800 font-mono text-sm px-1.5 py-0.5 rounded border border-slate-200;
+}
+
+.ProseMirror pre {
+  @apply bg-slate-900 text-slate-100 font-mono text-sm p-4 rounded-lg my-4 overflow-x-auto block w-full;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent text-inherit p-0 border-none;
+}
+
+.ProseMirror mark {
+  @apply bg-yellow-200 text-slate-900 px-1 rounded;
+}
+
+/* Ensure TipTap alignment inline styles take priority and render perfectly */
+.ProseMirror [style*="text-align: left"],
+.ProseMirror [style*="text-align:left"] {
+  text-align: left !important;
+}
+
+.ProseMirror [style*="text-align: center"],
+.ProseMirror [style*="text-align:center"] {
+  text-align: center !important;
+}
+
+.ProseMirror [style*="text-align: right"],
+.ProseMirror [style*="text-align:right"] {
+  text-align: right !important;
+}
+
+.ProseMirror [style*="text-align: justify"],
+.ProseMirror [style*="text-align:justify"] {
+  text-align: justify !important;
+}
+
+/* Placeholder styling */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

@@ -1,0 +1,20 @@
+# Database and WAL files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment and logs
+.env
+.env.local
+*.log
+npm-debug.log*
