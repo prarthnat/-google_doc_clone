@@ -17,8 +17,8 @@ import { EditorToolbar } from './EditorToolbar';
 import { UrlPromptModal } from './UrlPromptModal';
 import {
   AlertCircle,
-  Clock,
   ArrowLeft,
+  Clock,
   Share2,
   History,
   CheckCircle,
@@ -33,20 +33,13 @@ import {
   Users,
   Sparkles,
   Star,
-  Sidebar as SidebarIcon,
   Plus,
   X,
-  File,
-  Folder,
   MoreHorizontal,
   Wand2,
-  List,
-  ChevronRight,
-  ChevronDown,
   ArrowUpRight,
   Check,
   MessageSquare,
-  Quote
 } from 'lucide-react';
 import { api } from '../utils/api';
 import { CommentsDrawer } from './CommentsDrawer';
@@ -432,7 +425,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   </button>
 
                   {activeMenu === menuItem && (
-                    <div className="absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-[60] text-slate-700 font-normal animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto">
+                    <div className={`absolute left-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-[60] text-slate-700 font-normal animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto ${
+                      menuItem === 'Tools' ? 'w-[360px]' : 'w-60'
+                    }`}>
                       {menuItem === 'File' && (
                         <>
                           <button type="button" onClick={() => { setActiveMenu(null); onOpenHistory(); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2.5 font-medium">
@@ -545,9 +540,41 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                       )}
                       {menuItem === 'Tools' && (
                         <>
-                          <div className="px-3.5 py-2.5 text-xs text-slate-700 border-b border-slate-100 bg-slate-50/80 font-medium">
-                            <div>Word count: <strong>{wordCount}</strong> words</div>
-                            <div className="text-[11px] text-slate-500 mt-0.5">Character count: {charCount} chars ({readingTimeMinutes} min read)</div>
+                          <div className="m-2 p-4 rounded-xl border border-[#dfe5f2] bg-white shadow-2xs space-y-4 text-[#1f2937]">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                <FileText className="w-5 h-5 text-[#0b57d0] shrink-0 mt-0.5" />
+                                <div className="text-[13px] font-bold uppercase tracking-[0.16em] leading-snug">
+                                  Document<br />Info
+                                </div>
+                              </div>
+                              <div className="px-4 py-2 rounded-lg bg-[#e8f0fe] text-[#0842a0] text-[13px] font-bold uppercase tracking-[0.12em] leading-snug text-center">
+                                Live<br />Stats
+                              </div>
+                            </div>
+
+                            <div className="text-lg font-semibold truncate border-b border-[#e6eaf2] pb-3" title={title || 'Untitled Document'}>
+                              {title || 'Untitled Document'}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="rounded-xl border border-[#e6eaf2] p-4 min-w-0">
+                                <div className="text-xs font-semibold uppercase text-[#8a96aa] mb-2 truncate">Words</div>
+                                <div className="text-xl font-bold text-[#111827]">{wordCount.toLocaleString()}</div>
+                              </div>
+                              <div className="rounded-xl border border-[#e6eaf2] p-4 min-w-0">
+                                <div className="text-xs font-semibold uppercase text-[#8a96aa] mb-2 truncate">Characters</div>
+                                <div className="text-xl font-bold text-[#111827]">{charCount.toLocaleString()}</div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-[#e6eaf2] px-4 py-3 flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3 text-[#667085]">
+                                <Clock className="w-5 h-5 text-[#0b57d0] shrink-0" />
+                                <span className="text-sm leading-snug">Est. Read<br />Time</span>
+                              </div>
+                              <span className="text-lg font-bold text-[#111827] text-right whitespace-nowrap">~{readingTimeMinutes} min read</span>
+                            </div>
                           </div>
                           <button type="button" onClick={() => { setActiveMenu(null); setCommentsOpen(true); }} className="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center gap-2 font-medium">
                             <MessageSquare className="w-4 h-4 text-slate-500" />
@@ -730,7 +757,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       {/* Google Docs Horizontal Ruler */}
       {showRuler && (
         <div className="h-6 bg-white border-b border-slate-200/90 flex items-center select-none overflow-hidden relative z-10 shadow-2xs">
-          <div className="w-64 shrink-0 hidden md:block" /> {/* Offset for sidebar if open */}
+          <div className={`${showSidebarTabs ? 'w-[324px]' : 'w-0'} shrink-0 hidden md:block`} />
           <div className="flex-1 max-w-4xl mx-auto flex items-center justify-between px-16 text-[10px] text-slate-400 font-mono">
             {[1, 2, 3, 4, 5, 6, 7].map((num) => (
               <div key={num} className="flex items-center gap-6 relative">
@@ -746,56 +773,52 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
       {/* Main Workspace: Left Sidebar + Central Paper Canvas */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Google Docs Left Sidebar: Document Navigation & Headings Outline */}
+        {/* Google Docs Left Sidebar: Document tabs and heading outline */}
         {showSidebarTabs && (
-          <div className="w-64 bg-white border-r border-slate-200/80 p-4 flex flex-col gap-6 shrink-0 z-10 overflow-y-auto hidden md:flex">
-            {/* Document Info & Quick Stats Card */}
-            <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/80 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
-                <span className="flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                  <span>Document Info</span>
-                </span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-brand-100/80 text-brand-700 rounded">
-                  Live Stats
-                </span>
-              </div>
+          <aside className="w-[324px] bg-[#f8fafd] border-r border-[#dadce0] shrink-0 z-10 overflow-y-auto hidden md:flex flex-col text-[#3c4043]">
+            <div className="px-7 pt-5 pb-3">
+              <button
+                type="button"
+                onClick={() => setShowSidebarTabs(false)}
+                className="w-10 h-10 -ml-3 mb-8 rounded-full text-[#5f6368] hover:bg-[#eef0f4] flex items-center justify-center transition-colors"
+                title="Hide document tabs"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
 
-              <div className="font-semibold text-sm text-slate-800 truncate border-b border-slate-200/60 pb-2" title={title || 'Untitled Document'}>
-                {title || 'Untitled Document'}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-0.5">
-                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
-                  <div className="text-[10px] font-medium text-slate-400 uppercase">Words</div>
-                  <div className="text-sm font-bold text-slate-800 mt-0.5">{wordCount.toLocaleString()}</div>
+              <div className="flex items-center justify-between mb-5 pl-2 pr-3">
+                <div className="text-[16px] font-semibold text-[#3c4043]">
+                  Document tabs
                 </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
-                  <div className="text-[10px] font-medium text-slate-400 uppercase">Characters</div>
-                  <div className="text-sm font-bold text-slate-800 mt-0.5">{charCount.toLocaleString()}</div>
-                </div>
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full text-[#5f6368] hover:bg-[#eef0f4] flex items-center justify-center transition-colors"
+                  title="Add tab"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200/60 shadow-2xs">
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-brand-500 shrink-0" />
-                  <span>Est. Read Time</span>
-                </span>
-                <span className="font-bold text-slate-800">~{readingTimeMinutes} min read</span>
+              <div className="group flex items-center gap-4 h-[54px] rounded-full bg-[#d3e3fd] text-[#0b57d0] pl-8 pr-4">
+                <FileText className="w-5 h-5 shrink-0" />
+                <span className="flex-1 truncate text-[16px] font-semibold">Tab 1</span>
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full text-[#3c4043] hover:bg-[#c2d6f8] flex items-center justify-center transition-colors"
+                  title="Tab options"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            {/* Headings Outline Section */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                Headings
-              </div>
+            <div className="flex-1 min-h-0 ml-[78px] mr-6 pb-6 pt-0 border-l-2 border-[#e1e7ef]">
               {headings.length === 0 ? (
-                <div className="text-xs text-slate-400 italic leading-relaxed py-2">
+                <div className="pl-5 pt-1 text-[16px] text-[#5f6368] italic leading-snug max-w-[210px]">
                   Headings you add to the document will appear here.
                 </div>
               ) : (
-                <div className="flex flex-col gap-1 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-0.5 overflow-y-auto pr-1">
                   {headings.map((h, i) => (
                     <button
                       key={`${h.id}-${i}`}
@@ -805,18 +828,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           editor.commands.focus(h.pos);
                         }
                       }}
-                      className={`text-left text-xs text-slate-600 hover:text-brand-600 hover:bg-slate-50 px-2 py-1.5 rounded truncate transition-colors font-medium flex items-center gap-1.5 ${
-                        h.level === 1 ? 'font-semibold text-slate-800' : h.level === 2 ? 'pl-4' : 'pl-6 text-slate-500'
+                      className={`relative w-full min-h-10 text-left text-[16px] leading-5 hover:bg-[#eef0f4] rounded-r-full py-2 pr-2 transition-colors truncate ${
+                        i === 0 ? 'text-[#0b57d0] font-medium before:absolute before:left-[-2px] before:top-1 before:bottom-1 before:w-[2px] before:bg-[#0b57d0]' : 'text-[#3c4043]'
+                      } ${
+                        h.level === 1 ? 'pl-7' : h.level === 2 ? 'pl-[62px] text-[#5f6368]' : 'pl-[86px] text-[#5f6368]'
                       }`}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
                       <span className="truncate">{h.text}</span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
-          </div>
+          </aside>
         )}
 
         {/* Central Scrollable Canvas */}
